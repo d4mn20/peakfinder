@@ -19,6 +19,7 @@ class _ExplorePageState extends State<ExplorePage> {
       Completer<GoogleMapController>();
 
   LatLng? _currentP;
+  LatLng? _selectedLocation;
 
   Map<PolylineId, Polyline> polylines = {};
 
@@ -32,9 +33,14 @@ class _ExplorePageState extends State<ExplorePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: const MyAppBar(
+      appBar: MyAppBar(
         title: "E X P L O R A R",
-        actions: [],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: _onAddMarkerButtonPressed,
+          ),
+        ],
       ),
       drawer: const MyDrawer(),
       body: _currentP == null
@@ -42,21 +48,124 @@ class _ExplorePageState extends State<ExplorePage> {
               child: Text("Loading..."),
             )
           : GoogleMap(
-              onMapCreated: ((GoogleMapController controller) =>
-                  _mapController.complete(controller)),
+              onMapCreated: (GoogleMapController controller) =>
+                  _mapController.complete(controller),
               initialCameraPosition: CameraPosition(
                 target: _currentP!,
                 zoom: 13,
               ),
-              markers: {
-                Marker(
-                  markerId: const MarkerId("_currentLocation"),
-                  icon: BitmapDescriptor.defaultMarker,
-                  position: _currentP!,
-                ),
-              },
+              markers: _createMarkers(),
               polylines: Set<Polyline>.of(polylines.values),
+              onTap: _onMapTapped,
             ),
+    );
+  }
+
+  Set<Marker> _createMarkers() {
+    final markers = <Marker>{};
+
+    if (_currentP != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId("_currentLocation"),
+          icon: BitmapDescriptor.defaultMarker,
+          position: _currentP!,
+        ),
+      );
+    }
+
+    if (_selectedLocation != null) {
+      markers.add(
+        Marker(
+          markerId: const MarkerId("_selectedLocation"),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          position: _selectedLocation!,
+        ),
+      );
+    }
+
+    return markers;
+  }
+
+  void _onAddMarkerButtonPressed() {
+    setState(() {
+      _selectedLocation = null; // Reset selected location
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Tap on the map to select a location")),
+    );
+  }
+
+  void _onMapTapped(LatLng position) {
+    setState(() {
+      _selectedLocation = position;
+    });
+
+    _showLocationInfoBottomSheet();
+  }
+
+  void _showLocationInfoBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Permite que o BottomSheet use o tamanho necessário para o conteúdo
+      builder: (BuildContext context) {
+        final TextEditingController nameController = TextEditingController();
+
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom, // Ajusta a altura do teclado
+          ),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "Localização Selecionada: (${_selectedLocation?.latitude}, ${_selectedLocation?.longitude})",
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: "Nome",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red, // Cor do botão Cancelar
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).pop(); // Fecha o BottomSheet
+                        },
+                        child: const Text("Cancelar"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          final String name = nameController.text;
+                          // Adicione a lógica para salvar ou utilizar as informações inseridas
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Nome: $name, Localização: $_selectedLocation")),
+                          );
+                          Navigator.of(context).pop(); // Fecha o BottomSheet
+                        },
+                        child: const Text("Salvar"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -76,10 +185,11 @@ class _ExplorePageState extends State<ExplorePage> {
     PermissionStatus permissionGranted;
 
     serviceEnabled = await _locationController.serviceEnabled();
-    if (serviceEnabled) {
+    if (!serviceEnabled) {
       serviceEnabled = await _locationController.requestService();
-    } else {
-      return;
+      if (!serviceEnabled) {
+        return;
+      }
     }
 
     permissionGranted = await _locationController.hasPermission();
@@ -90,8 +200,7 @@ class _ExplorePageState extends State<ExplorePage> {
       }
     }
 
-    _locationController.onLocationChanged
-        .listen((LocationData currentLocation) {
+    _locationController.onLocationChanged.listen((LocationData currentLocation) {
       if (currentLocation.latitude != null &&
           currentLocation.longitude != null) {
         setState(() {
