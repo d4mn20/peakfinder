@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:peakfinder/services/firestore.dart';
 import '../components/my_app_bar.dart';
 import '../components/my_drawer.dart';
 
@@ -13,6 +14,7 @@ class ExplorePage extends StatefulWidget {
 }
 
 class _ExplorePageState extends State<ExplorePage> {
+  final FirestoreService firestoreService = FirestoreService("peaks");
   final Location _locationController = Location();
 
   final Completer<GoogleMapController> _mapController =
@@ -28,6 +30,8 @@ class _ExplorePageState extends State<ExplorePage> {
     super.initState();
     getLocationUpdates();
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -154,6 +158,12 @@ class _ExplorePageState extends State<ExplorePage> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text("Nome: $name, Localização: $_selectedLocation")),
                           );
+                          // firestoreService.addData({
+                          //     "name": name,
+                          //     "location": _selectedLocation,
+                          //   }, 
+                          // "peaks");
+                          firestoreService.addData({"name": name});
                           Navigator.of(context).pop(); // Fecha o BottomSheet
                         },
                         child: const Text("Salvar"),
