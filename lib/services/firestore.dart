@@ -1,30 +1,51 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FirestoreService {
+  final String collectionName;
+  late final CollectionReference collection;
 
- final String collectionName;
-  CollectionReference collection;
-
-  FirestoreService(this.collectionName) : collection = FirebaseFirestore.instance.collection(collectionName) {
+  FirestoreService(this.collectionName) {
     collection = FirebaseFirestore.instance.collection(collectionName);
   }
+
   // CREATE
-  Future<void> addData(Map<String, dynamic> data) {
-    return collection.add(data);
+  Future<void> addData(Map<String, dynamic> data) async {
+    try {
+      await collection.add(data);
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  //READ
+  // READ
   Stream<QuerySnapshot> getSnapshot() {
     return collection.snapshots();
   }
 
-  //UPDATE
-  Future<void> updateData(String id, Map<String, dynamic> data) {
-    return collection.doc(id).update(data);
+  Future<List<QueryDocumentSnapshot>> getAllData() async {
+    try {
+      QuerySnapshot querySnapshot = await collection.get();
+      return querySnapshot.docs;
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  //DELETE
-  Future<void> deleteData(String id) {
-    return collection.doc(id).delete();
+  // UPDATE
+  Future<void> updateData(String id, Map<String, dynamic> data) async {
+    try {
+      await collection.doc(id).update(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // DELETE
+  Future<void> deleteData(String id) async {
+    try {
+      await collection.doc(id).delete();
+    } catch (e) {
+      rethrow;
+    }
   }
 }

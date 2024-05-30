@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:peakfinder/components/my_dropdown_button.dart';
 import 'package:peakfinder/services/firestore.dart';
 import '../components/my_app_bar.dart';
 import '../components/my_drawer.dart';
@@ -16,22 +18,28 @@ class ExplorePage extends StatefulWidget {
 class _ExplorePageState extends State<ExplorePage> {
   final FirestoreService firestoreService = FirestoreService("peaks");
   final Location _locationController = Location();
-
-  final Completer<GoogleMapController> _mapController =
-      Completer<GoogleMapController>();
-
+  final Completer<GoogleMapController> _mapController = Completer<GoogleMapController>();
   LatLng? _currentP;
   LatLng? _selectedLocation;
-
+  bool _isActionEnabled = false;
   Map<PolylineId, Polyline> polylines = {};
+  Set<Marker> _markers = {};
+  BitmapDescriptor? _flagIcon;
 
   @override
   void initState() {
     super.initState();
     getLocationUpdates();
+    fetchMarkersFromFirestore();
+    loadCustomMarkerIcon();
   }
 
-
+  Future<void> loadCustomMarkerIcon() async {
+    _flagIcon = await BitmapDescriptor.fromAssetImage(
+      const ImageConfiguration(size: Size(48, 48)),
+      'lib/images/flag_icon.png',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +50,12 @@ class _ExplorePageState extends State<ExplorePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: _onAddMarkerButtonPressed,
+            onPressed: () {
+              setState(() {
+                _isActionEnabled = !_isActionEnabled;
+              });
+              _onAddMarkerButtonPressed();
+            },
           ),
         ],
       ),
@@ -52,43 +65,16 @@ class _ExplorePageState extends State<ExplorePage> {
               child: Text("Loading..."),
             )
           : GoogleMap(
-              onMapCreated: (GoogleMapController controller) =>
-                  _mapController.complete(controller),
+              onMapCreated: (GoogleMapController controller) => _mapController.complete(controller),
               initialCameraPosition: CameraPosition(
                 target: _currentP!,
                 zoom: 13,
               ),
-              markers: _createMarkers(),
+              markers: _markers,
               polylines: Set<Polyline>.of(polylines.values),
               onTap: _onMapTapped,
             ),
     );
-  }
-
-  Set<Marker> _createMarkers() {
-    final markers = <Marker>{};
-
-    if (_currentP != null) {
-      markers.add(
-        Marker(
-          markerId: const MarkerId("_currentLocation"),
-          icon: BitmapDescriptor.defaultMarker,
-          position: _currentP!,
-        ),
-      );
-    }
-
-    if (_selectedLocation != null) {
-      markers.add(
-        Marker(
-          markerId: const MarkerId("_selectedLocation"),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          position: _selectedLocation!,
-        ),
-      );
-    }
-
-    return markers;
   }
 
   void _onAddMarkerButtonPressed() {
@@ -102,24 +88,33 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   void _onMapTapped(LatLng position) {
-    setState(() {
-      _selectedLocation = position;
-    });
-
-    _showLocationInfoBottomSheet();
+    if (_isActionEnabled) {
+      setState(() {
+        _selectedLocation = position;
+      });
+      _addNewPeak();
+    }
   }
 
-  void _showLocationInfoBottomSheet() {
+  void _addNewPeak() {
+    String? selectedDifficulty;
+    final List<String> difficultyOptions = [
+      'I', 'Isup', 'II', 'IIsup', 'III', 'IIIsup', 'IV', 'IVsup', 'V', 'VI',
+      'VI/VI+', 'VIsup/VI+', 'VIsup', '7a', '7b', '7c', '8a', '8b', '8c', '9a',
+      '9b', '9c', '10a', '10b', '10c', '11a', '11b', '11c', '12a', '12b', '12c',
+    ];
+
+    final nameController = TextEditingController();
+    final descriptionController = TextEditingController();
+    final protectionsController = TextEditingController();
+    final conquerorController = TextEditingController();
+
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Permite que o BottomSheet use o tamanho necessário para o conteúdo
+      isScrollControlled: true,
       builder: (BuildContext context) {
-        final TextEditingController nameController = TextEditingController();
-
         return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom, // Ajusta a altura do teclado
-          ),
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -139,32 +134,84 @@ class _ExplorePageState extends State<ExplorePage> {
                     ),
                   ),
                   const SizedBox(height: 16),
+                  TextField(
+                    controller: conquerorController,
+                    decoration: const InputDecoration(
+                      labelText: "Conquistador",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: "Descrição",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: protectionsController,
+                    decoration: const InputDecoration(
+                      labelText: "Proteções",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  MyDropdownButton<String>(
+                    hint: 'Dificuldade',
+                    value: selectedDifficulty,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        selectedDifficulty = newValue;
+                      });
+                    },
+                    items: difficultyOptions.map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red, // Cor do botão Cancelar
-                        ),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                         onPressed: () {
-                          Navigator.of(context).pop(); // Fecha o BottomSheet
+                          Navigator.of(context).pop();
                         },
                         child: const Text("Cancelar"),
                       ),
                       ElevatedButton(
-                        onPressed: () {
-                          final String name = nameController.text;
-                          // Adicione a lógica para salvar ou utilizar as informações inseridas
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Nome: $name, Localização: $_selectedLocation")),
-                          );
-                          // firestoreService.addData({
-                          //     "name": name,
-                          //     "location": _selectedLocation,
-                          //   }, 
-                          // "peaks");
-                          firestoreService.addData({"name": name});
-                          Navigator.of(context).pop(); // Fecha o BottomSheet
+                        onPressed: () async {
+                          try {
+                            final location = _selectedLocation != null
+                                ? {
+                                    'latitude': _selectedLocation!.latitude,
+                                    'longitude': _selectedLocation!.longitude,
+                                  }
+                                : null;
+
+                            await firestoreService.addData({
+                              "name": nameController.text,
+                              "location": location,
+                              "description": descriptionController.text,
+                              "protections": protectionsController.text,
+                              "conqueror": conquerorController.text,
+                              "difficulty": selectedDifficulty,
+                            });
+                            setState(() {
+                              _isActionEnabled = false;
+                            });
+                            Navigator.of(context).pop();
+                            fetchMarkersFromFirestore(); // Refresh markers
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to save data: $e')),
+                            );
+                          }
                         },
                         child: const Text("Salvar"),
                       ),
@@ -176,17 +223,6 @@ class _ExplorePageState extends State<ExplorePage> {
           ),
         );
       },
-    );
-  }
-
-  Future<void> _cameraToPosition(LatLng pos) async {
-    final GoogleMapController controller = await _mapController.future;
-    CameraPosition newCameraPosition = CameraPosition(
-      target: pos,
-      zoom: 13,
-    );
-    await controller.animateCamera(
-      CameraUpdate.newCameraPosition(newCameraPosition),
     );
   }
 
@@ -211,14 +247,51 @@ class _ExplorePageState extends State<ExplorePage> {
     }
 
     _locationController.onLocationChanged.listen((LocationData currentLocation) {
-      if (currentLocation.latitude != null &&
-          currentLocation.longitude != null) {
+      if (currentLocation.latitude != null && currentLocation.longitude != null) {
         setState(() {
-          _currentP =
-              LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          _cameraToPosition(_currentP!);
+          _currentP = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+          _markers.add(
+            Marker(
+              markerId: const MarkerId("_currentLocation"),
+              icon: BitmapDescriptor.defaultMarker,
+              position: _currentP!,
+              infoWindow: const InfoWindow(title: "Current Location"),
+            ),
+          );
         });
       }
     });
+  }
+
+  Future<void> fetchMarkersFromFirestore() async {
+    try {
+      List<QueryDocumentSnapshot> documents = await firestoreService.getAllData();
+      Set<Marker> fetchedMarkers = documents.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        if (data['location'] != null && data['location'] is Map<String, dynamic>) {
+          Map<String, dynamic> locationData = data['location'] as Map<String, dynamic>;
+          LatLng position = LatLng(locationData['latitude'], locationData['longitude']);
+          return Marker(
+            markerId: MarkerId(doc.id),
+            position: position,
+            icon: _flagIcon ?? BitmapDescriptor.defaultMarker,
+            infoWindow: InfoWindow(
+              title: data['name'],
+              snippet: data['description'],
+            ),
+          );
+        } else {
+          return null; // Return null if location data is invalid
+        }
+      }).where((marker) => marker != null).cast<Marker>().toSet();
+
+      setState(() {
+        _markers = fetchedMarkers;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load markers: $e')),
+      );
+    }
   }
 }
