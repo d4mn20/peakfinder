@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:peakfinder/auth/auth_service.dart';
 import 'package:peakfinder/pages/favorites.dart';
 import 'package:peakfinder/pages/explore_page.dart';
 import 'package:peakfinder/pages/profile.dart';
@@ -64,7 +65,7 @@ class MyDrawer extends StatelessWidget {
                     // pop drawer
                     Navigator.pop(context);
 
-                    // go to settings page
+                    // go to favorites page
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -84,7 +85,7 @@ class MyDrawer extends StatelessWidget {
                     // pop drawer
                     Navigator.pop(context);
 
-                    // go to settings page
+                    // go to profile page
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -124,18 +125,28 @@ class MyDrawer extends StatelessWidget {
               title: const Text("L O G O U T"),
               leading: const Icon(Icons.logout),
               onTap: () {
-                // go to about page
-                Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const LoginOrRegister(),
-                    ),
-                    (route) => false);
+                // logout and navigate to login page
+                logout(context);
               },
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void logout(BuildContext context) async {
+    // get auth service
+    final auth = AuthService();
+    auth.signOut();
+
+    // Navigate to LoginOrRegister page
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LoginOrRegister(),
+      ),
+      (route) => false,
     );
   }
 }

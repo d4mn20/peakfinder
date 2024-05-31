@@ -37,35 +37,41 @@ class _RegisterPageState extends State<RegisterPage> {
 
       // show error message
       displayMessageToUser("Senhas não conferem!", context);
-    }
+      return; // add return to stop further execution
+    } 
+    else {
+      // try creating the user
+      try {
+        // create the user
+        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: emailController.text,
+          password: passwordController.text,
+        );
 
-    // try creating the user
-    try {
-      // create the user
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(email: emailController.text, password: passwordController.text);
-
-      // pop loading circle
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
         // pop loading circle
-        Navigator.pop(context);
+        if (mounted) {
+          Navigator.pop(context);
+        }
 
-        // show error message
-        displayMessageToUser(e.code, context);
+        // once created, send user to homepage
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ExplorePage(),
+            ),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        if (mounted) {
+          // pop loading circle
+          Navigator.pop(context);
+
+          // show error message
+          displayMessageToUser(e.code, context);
+        }
       }
-    }
-    if (mounted) {
-      // once created, send user to homepage
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const ExplorePage(),
-        ),
-      );
-    }
+    }   
   }
 
   @override
@@ -130,7 +136,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 // sign in button
                 MyButton(
                   onTap: register,
-                  text: "Sign Up",
+                  text: "Cadastrar",
                 ),
 
                 const SizedBox(height: 50),

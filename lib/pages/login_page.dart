@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:peakfinder/auth/auth_service.dart';
+import 'package:peakfinder/helper/helper_function.dart';
 import '../components/my_button.dart';
 import '../components/my_textfield.dart';
 import '../components/my_square_tile.dart';
@@ -19,9 +22,27 @@ class _LoginPageState extends State<LoginPage> {
   final passwordController = TextEditingController();
 
   // login method
-  void login() {
+  void login() async {
     // authenticate user first
+    showDialog(
+      context: context,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      )
+    );
 
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(email: emailController.text, password: passwordController.text);
+    
+      if (context.mounted) Navigator.pop(context);
+    }
+
+    // display on any errors
+    on FirebaseAuthException catch (e) {
+      // pop loading circle
+      Navigator.pop(context);
+      displayMessageToUser(e.code, context);
+    }
     // once authenticated, send user to homepage
     Navigator.push(
       context,
@@ -38,39 +59,6 @@ class _LoginPageState extends State<LoginPage> {
       builder: (context) => AlertDialog(
         backgroundColor: Theme.of(context).colorScheme.surface,
         title: const Text("User tapped forgot password."),
-      ),
-    );
-  }
-
-  // google sign in
-  void googleSignIn() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        title: const Text("Login with Google?"),
-        actions: [
-          // cancel
-          MaterialButton(
-            color: Theme.of(context).colorScheme.secondary,
-            elevation: 0,
-            child: const Text("Cancel"),
-            onPressed: () => Navigator.pop(context),
-          ),
-
-          // yes
-          MaterialButton(
-            color: Theme.of(context).colorScheme.secondary,
-            elevation: 0,
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const ExplorePage(),
-              ),
-            ),
-            child: const Text("Yes"),
-          ),
-        ],
       ),
     );
   }
@@ -97,7 +85,7 @@ class _LoginPageState extends State<LoginPage> {
                   'P E A K F I N D E R',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.primary,
-                    fontSize: 16,
+                    fontSize: 20,
                   ),
                 ),
                 const SizedBox(height: 50),
@@ -198,7 +186,7 @@ class _LoginPageState extends State<LoginPage> {
                   children: [
                     // google button
                     SquareTile(
-                      onTap: googleSignIn,
+                      onTap: () => AuthService().signInWithGoogle(),
                       child: Image.asset(
                         'lib/images/google.png',
                         height: 25,
