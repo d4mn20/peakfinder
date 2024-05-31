@@ -36,7 +36,7 @@ class _RegisterPageState extends State<RegisterPage> {
       Navigator.pop(context);
 
       // show error message
-      displayMessageToUser("Passwords don't match!", context);
+      displayMessageToUser("Senhas não conferem!", context);
     }
 
     // try creating the user
@@ -91,7 +91,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 // welcome back, you've been missed!
                 Text(
-                  'Let\'s create an account for you',
+                  'Vamos criar uma conta para você',
                   style: TextStyle(
                     color: Colors.grey[700],
                     fontSize: 16,
@@ -112,7 +112,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 // password textfield
                 MyTextField(
                   controller: passwordController,
-                  hintText: 'Password',
+                  hintText: 'Senha',
                   obscureText: true,
                 ),
 
@@ -121,7 +121,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 // confirm password textfield
                 MyTextField(
                   controller: confirmPasswordController,
-                  hintText: 'Confirm password',
+                  hintText: 'Confirme senha',
                   obscureText: true,
                 ),
 
@@ -140,7 +140,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Already a member?',
+                      'Já é um membro?',
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.primary),
                     ),
@@ -148,7 +148,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     GestureDetector(
                       onTap: widget.onTap,
                       child: const Text(
-                        'Login now',
+                        'Acessar agora',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                         ),

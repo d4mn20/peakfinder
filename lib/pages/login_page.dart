@@ -89,16 +89,22 @@ class _LoginPageState extends State<LoginPage> {
 
                 // logo
                 Image.asset(
-                  'lib/images/unlock.png',
+                  'lib/images/logo.png',
                   height: 100,
                   color: Theme.of(context).colorScheme.primary,
                 ),
-
+                Text(
+                  'P E A K F I N D E R',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 16,
+                  ),
+                ),
                 const SizedBox(height: 50),
 
                 // welcome back, you've been missed!
                 Text(
-                  'Welcome back you\'ve been missed!',
+                  'Bem-vindo ao seu guia de escalada!',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.primary,
                     fontSize: 16,
@@ -119,7 +125,7 @@ class _LoginPageState extends State<LoginPage> {
                 // password textfield
                 MyTextField(
                   controller: passwordController,
-                  hintText: 'Password',
+                  hintText: 'Senha',
                   obscureText: true,
                 ),
 
@@ -134,7 +140,7 @@ class _LoginPageState extends State<LoginPage> {
                       GestureDetector(
                         onTap: forgotPw,
                         child: Text(
-                          'Forgot Password?',
+                          'Esqueceu sua senha?',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).colorScheme.primary,
@@ -150,7 +156,7 @@ class _LoginPageState extends State<LoginPage> {
                 // sign in button
                 MyButton(
                   onTap: login,
-                  text: "Login",
+                  text: "Entrar",
                 ),
 
                 const SizedBox(height: 25),
@@ -169,7 +175,7 @@ class _LoginPageState extends State<LoginPage> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10.0),
                         child: Text(
-                          'Or continue with',
+                          'Ou continue com',
                           style: TextStyle(
                               color: Theme.of(context).colorScheme.primary),
                         ),
@@ -208,7 +214,7 @@ class _LoginPageState extends State<LoginPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Not a member?',
+                      'Não é membro?',
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.primary),
                     ),
@@ -216,7 +222,7 @@ class _LoginPageState extends State<LoginPage> {
                     GestureDetector(
                       onTap: widget.onTap,
                       child: Text(
-                        'Register now',
+                        'Cadastre-se',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,

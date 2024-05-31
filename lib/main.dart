@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:peakfinder/firebase_options.dart';
 import 'package:provider/provider.dart';
+import 'package:peakfinder/firebase_options.dart';
+import 'package:peakfinder/services/storage.dart';
+import 'package:peakfinder/services/image_path_controller.dart';
+import 'package:peakfinder/theme/theme_provider.dart';
 import 'auth/login_or_register.dart';
-import 'theme/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (context) => StorageService()),
+        ChangeNotifierProvider(create: (context) => ImagePathController()),
+      ],
       child: const MyApp(),
     ),
   );

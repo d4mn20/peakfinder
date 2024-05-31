@@ -1,12 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:location/location.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:peakfinder/components/my_dropdown_button.dart';
 import 'package:peakfinder/services/firestore.dart';
+import 'package:provider/provider.dart';
 import '../components/my_app_bar.dart';
 import '../components/my_drawer.dart';
+import '../components/my_textfield.dart';
+import '../components/my_button.dart';
+import '../services/storage.dart';
+import '../services/image_path_controller.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -34,13 +41,6 @@ class _ExplorePageState extends State<ExplorePage> {
     loadCustomMarkerIcon();
   }
 
-  Future<void> loadCustomMarkerIcon() async {
-    _flagIcon = await BitmapDescriptor.fromAssetImage(
-      const ImageConfiguration(size: Size(48, 48)),
-      'lib/images/flag_icon.png',
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,12 +50,7 @@ class _ExplorePageState extends State<ExplorePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () {
-              setState(() {
-                _isActionEnabled = !_isActionEnabled;
-              });
-              _onAddMarkerButtonPressed();
-            },
+            onPressed: _onAddButtonPressed,
           ),
         ],
       ),
@@ -77,13 +72,13 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
-  void _onAddMarkerButtonPressed() {
+  void _onAddButtonPressed() {
     setState(() {
-      _selectedLocation = null; // Reset selected location
+      _isActionEnabled = true;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Tap on the map to select a location")),
+      const SnackBar(content: Text("Toque no mapa para selecionar uma localização")),
     );
   }
 
@@ -91,12 +86,13 @@ class _ExplorePageState extends State<ExplorePage> {
     if (_isActionEnabled) {
       setState(() {
         _selectedLocation = position;
+        _isActionEnabled = false;
       });
-      _addNewPeak();
+      _showAddPeakModal();
     }
   }
 
-  void _addNewPeak() {
+  void _showAddPeakModal() {
     String? selectedDifficulty;
     final List<String> difficultyOptions = [
       'I', 'Isup', 'II', 'IIsup', 'III', 'IIIsup', 'IV', 'IVsup', 'V', 'VI',
@@ -121,71 +117,94 @@ class _ExplorePageState extends State<ExplorePage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    "Localização Selecionada: (${_selectedLocation?.latitude}, ${_selectedLocation?.longitude})",
-                    style: const TextStyle(fontSize: 16),
+                  const Text(
+                    "Adicione seu Peak",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  MyTextField(
                     controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: "Nome",
-                      border: OutlineInputBorder(),
-                    ),
+                    hintText: 'Nome',
+                    obscureText: false,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  MyTextField(
                     controller: conquerorController,
-                    decoration: const InputDecoration(
-                      labelText: "Conquistador",
-                      border: OutlineInputBorder(),
-                    ),
+                    hintText: 'Conquistador',
+                    obscureText: false,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  MyTextField(
                     controller: descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: "Descrição",
-                      border: OutlineInputBorder(),
-                    ),
+                    hintText: 'Descrição',
+                    obscureText: false,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  MyTextField(
                     controller: protectionsController,
-                    decoration: const InputDecoration(
-                      labelText: "Proteções",
-                      border: OutlineInputBorder(),
-                    ),
+                    hintText: 'Proteções',
+                    obscureText: false,
                   ),
                   const SizedBox(height: 16),
-                  MyDropdownButton<String>(
-                    hint: 'Dificuldade',
-                    value: selectedDifficulty,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        selectedDifficulty = newValue;
-                      });
-                    },
-                    items: difficultyOptions.map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
+                  StatefulBuilder(
+                    builder: (BuildContext context, StateSetter setState) {
+                      return MyDropdownButton<String>(
+                        hint: 'Dificuldade',
+                        value: selectedDifficulty,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            selectedDifficulty = newValue;
+                          });
+                        },
+                        items: difficultyOptions.map<DropdownMenuItem<String>>((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
                       );
-                    }).toList(),
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Consumer<ImagePathController>(
+                    builder: (context, imagePathController, child) {
+                      return Column(
+                        children: [
+                          imagePathController.imagePath == null
+                              ? const Text('Nenhuma imagem selecionada')
+                              : Image.network(imagePathController.imagePath!),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () async {
+                              final ImagePicker picker = ImagePicker();
+                              final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+                              if (image != null) {
+                                String? imagePath = await Provider.of<StorageService>(context, listen: false)
+                                    .uploadImage(File(image.path));
+                                if (imagePath != null) {
+                                  imagePathController.setImagePath(imagePath);
+                                }
+                              }
+                            },
+                            child: const Text('Selecionar Imagem'),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                        onPressed: () {
+                      MyButton(
+                        onTap: () {
                           Navigator.of(context).pop();
                         },
-                        child: const Text("Cancelar"),
+                        text: "Cancelar",
                       ),
-                      ElevatedButton(
-                        onPressed: () async {
+                      MyButton(
+                        onTap: () async {
                           try {
                             final location = _selectedLocation != null
                                 ? {
@@ -194,6 +213,18 @@ class _ExplorePageState extends State<ExplorePage> {
                                   }
                                 : null;
 
+                            if (nameController.text.isEmpty ||
+                                conquerorController.text.isEmpty ||
+                                descriptionController.text.isEmpty ||
+                                protectionsController.text.isEmpty ||
+                                selectedDifficulty == null ||
+                                Provider.of<ImagePathController>(context, listen: false).imagePath == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Preencha todos os campos')),
+                              );
+                              return;
+                            }
+
                             await firestoreService.addData({
                               "name": nameController.text,
                               "location": location,
@@ -201,11 +232,9 @@ class _ExplorePageState extends State<ExplorePage> {
                               "protections": protectionsController.text,
                               "conqueror": conquerorController.text,
                               "difficulty": selectedDifficulty,
+                              "imagePath": Provider.of<ImagePathController>(context, listen: false).imagePath,
                             });
-                            setState(() {
-                              _isActionEnabled = false;
-                            });
-                            Navigator.of(context).pop();
+                            Navigator.of(context).pop(); // Fechar o modal
                             fetchMarkersFromFirestore(); // Refresh markers
                           } catch (e) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -213,7 +242,7 @@ class _ExplorePageState extends State<ExplorePage> {
                             );
                           }
                         },
-                        child: const Text("Salvar"),
+                        text: "Salvar",
                       ),
                     ],
                   ),
@@ -227,40 +256,48 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Future<void> getLocationUpdates() async {
-    bool serviceEnabled;
-    PermissionStatus permissionGranted;
-
-    serviceEnabled = await _locationController.serviceEnabled();
-    if (!serviceEnabled) {
-      serviceEnabled = await _locationController.requestService();
+    try {
+      bool serviceEnabled = await _locationController.serviceEnabled();
       if (!serviceEnabled) {
-        return;
+        serviceEnabled = await _locationController.requestService();
+        if (!serviceEnabled) {
+          return;
+        }
       }
-    }
 
-    permissionGranted = await _locationController.hasPermission();
-    if (permissionGranted == PermissionStatus.denied) {
-      permissionGranted = await _locationController.requestPermission();
-      if (permissionGranted != PermissionStatus.granted) {
-        return;
+      PermissionStatus permissionGranted = await _locationController.hasPermission();
+      if (permissionGranted == PermissionStatus.denied) {
+        permissionGranted = await _locationController.requestPermission();
+        if (permissionGranted != PermissionStatus.granted) {
+          return;
+        }
       }
-    }
 
-    _locationController.onLocationChanged.listen((LocationData currentLocation) {
-      if (currentLocation.latitude != null && currentLocation.longitude != null) {
-        setState(() {
-          _currentP = LatLng(currentLocation.latitude!, currentLocation.longitude!);
-          _markers.add(
-            Marker(
-              markerId: const MarkerId("_currentLocation"),
-              icon: BitmapDescriptor.defaultMarker,
-              position: _currentP!,
-              infoWindow: const InfoWindow(title: "Current Location"),
-            ),
-          );
-        });
-      }
-    });
+      _locationController.onLocationChanged.listen((LocationData currentLocation) {
+        if (currentLocation.latitude != null && currentLocation.longitude != null) {
+          setState(() {
+            _currentP = LatLng(currentLocation.latitude!, currentLocation.longitude!);
+            _markers.add(
+              Marker(
+                markerId: const MarkerId("_currentLocation"),
+                icon: BitmapDescriptor.defaultMarker,
+                position: _currentP!,
+                infoWindow: const InfoWindow(title: "Current Location"),
+              ),
+            );
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Error getting location updates: $e');
+    }
+  }
+
+  Future<void> loadCustomMarkerIcon() async {
+    _flagIcon = await BitmapDescriptor.fromAssetImage(
+      const ImageConfiguration(size: Size(64, 64)),
+      'lib/images/flag_icon.png',
+    );
   }
 
   Future<void> fetchMarkersFromFirestore() async {
@@ -279,6 +316,9 @@ class _ExplorePageState extends State<ExplorePage> {
               title: data['name'],
               snippet: data['description'],
             ),
+            onTap: () {
+              _showMarkerInfoBottomSheet(data);
+            },
           );
         } else {
           return null; // Return null if location data is invalid
@@ -293,5 +333,50 @@ class _ExplorePageState extends State<ExplorePage> {
         SnackBar(content: Text('Failed to load markers: $e')),
       );
     }
+  }
+
+  void _showMarkerInfoBottomSheet(Map<String, dynamic> data) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Permite que o modal ocupe mais espaço
+      builder: (BuildContext context) {
+        return FractionallySizedBox(
+          widthFactor: 0.9,
+          heightFactor: 0.75, // Define a altura do modal como 90% da altura da tela
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    data['name'] ?? 'No Name',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Conquistador:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${data['conqueror'] ?? 'Unknown'}'),
+                  const SizedBox(height: 8),
+                  const Text('Descrição:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${data['description'] ?? 'Unknown'}'),
+                  const SizedBox(height: 8),
+                  const Text('Proteções:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${data['protection'] ?? 'Unknown'}'),
+                  const SizedBox(height: 8),
+                  const Text('Dificuldade:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text('${data['difficulty'] ?? 'Unknown'}'),
+                  const SizedBox(height: 8),
+                  if (data['imagePath'] != null)
+                    Image.network(
+                      data['imagePath'],
+                      fit: BoxFit.fitWidth,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
