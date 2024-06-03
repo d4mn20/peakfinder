@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:location/location.dart';
@@ -225,6 +226,15 @@ class _ExplorePageState extends State<ExplorePage> {
                               return;
                             }
 
+                            final userId = FirebaseAuth.instance.currentUser?.uid; // Obtém o userId
+
+                            if (userId == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('User not logged in')),
+                              );
+                              return;
+                            }
+
                             await firestoreService.addData({
                               "name": nameController.text,
                               "location": location,
@@ -233,7 +243,7 @@ class _ExplorePageState extends State<ExplorePage> {
                               "conqueror": conquerorController.text,
                               "difficulty": selectedDifficulty,
                               "imagePath": Provider.of<ImagePathController>(context, listen: false).imagePath,
-                            });
+                            }, userId);
                             Navigator.of(context).pop(); // Fechar o modal
                             fetchMarkersFromFirestore(); // Refresh markers
                           } catch (e) {
@@ -317,7 +327,7 @@ class _ExplorePageState extends State<ExplorePage> {
               snippet: data['description'],
             ),
             onTap: () {
-              _showMarkerInfoBottomSheet(data);
+              _showMarkerInfoBottomSheet(data, doc.id);
             },
           );
         } else {
@@ -335,13 +345,15 @@ class _ExplorePageState extends State<ExplorePage> {
     }
   }
 
-  void _showMarkerInfoBottomSheet(Map<String, dynamic> data) {
+  void _showMarkerInfoBottomSheet(Map<String, dynamic> data, String peakId) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, // Permite que o modal ocupe mais espaço
       builder: (BuildContext context) {
         return FractionallySizedBox(
-          widthFactor: 0.9,
+          widthFactor: 1,
           heightFactor: 0.75, // Define a altura do modal como 90% da altura da tela
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -370,6 +382,20 @@ class _ExplorePageState extends State<ExplorePage> {
                     Image.network(
                       data['imagePath'],
                       fit: BoxFit.fitWidth,
+                    ),
+                  const SizedBox(height: 8),
+                  if (userId != null)
+                    IconButton(
+                      icon: Icon(
+                        data['likes'] != null && (data['likes'] as List).contains(userId)
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                      ),
+                      onPressed: () async {
+                        await firestoreService.toggleLike(peakId, userId);
+                        Navigator.of(context).pop();
+                        fetchMarkersFromFirestore();
+                      },
                     ),
                 ],
               ),

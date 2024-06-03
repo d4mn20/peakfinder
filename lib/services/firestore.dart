@@ -9,8 +9,10 @@ class FirestoreService {
   }
 
   // CREATE
-  Future<void> addData(Map<String, dynamic> data) async {
+  Future<void> addData(Map<String, dynamic> data, String userId) async {
     try {
+      data['userId'] = userId;
+      data['likes'] = []; // Inicializa o campo likes como uma lista vazia
       await collection.add(data);
     } catch (e) {
       rethrow;
@@ -44,6 +46,32 @@ class FirestoreService {
   Future<void> deleteData(String id) async {
     try {
       await collection.doc(id).delete();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // LIKE/UNLIKE
+  Future<void> toggleLike(String peakId, String userId) async {
+    try {
+      DocumentSnapshot document = await collection.doc(peakId).get();
+      if (!document.exists) {
+        throw StateError("Document does not exist");
+      }
+
+      List<dynamic> likes = [];
+      var data = document.data() as Map<String, dynamic>?;
+
+      if (data != null && data.containsKey('likes')) {
+        likes = List.from(data['likes']);
+      }
+
+      if (likes.contains(userId)) {
+        likes.remove(userId);
+      } else {
+        likes.add(userId);
+      }
+      await collection.doc(peakId).update({'likes': likes});
     } catch (e) {
       rethrow;
     }

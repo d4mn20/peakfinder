@@ -4,6 +4,7 @@ import '../components/my_button.dart';
 import '../components/my_textfield.dart';
 import '../helper/helper_function.dart';
 import 'explore_page.dart';
+import 'package:peakfinder/services/firestore_user_service.dart'; // Importa o FirestoreUserService
 
 class RegisterPage extends StatefulWidget {
   final void Function()? onTap;
@@ -15,10 +16,13 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  final FirestoreUserService _firestoreUserService = FirestoreUserService();
+
   // text editing controllers
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  final usernameController = TextEditingController();
 
   // register method
   void register() async {
@@ -28,18 +32,20 @@ class _RegisterPageState extends State<RegisterPage> {
       builder: (context) => const Center(
         child: CircularProgressIndicator(),
       ),
+      barrierDismissible: false, // Evita que o diálogo seja fechado ao clicar fora
     );
 
     // make sure passwords match
     if (passwordController.text != confirmPasswordController.text) {
       // pop loading circle
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
 
       // show error message
       displayMessageToUser("Senhas não conferem!", context);
-      return; // add return to stop further execution
-    } 
-    else {
+      return;
+    } else {
       // try creating the user
       try {
         // create the user
@@ -48,14 +54,17 @@ class _RegisterPageState extends State<RegisterPage> {
           password: passwordController.text,
         );
 
+        // Salva o usuário no Firestore com o username
+        await _firestoreUserService.saveUserToFirestore(userCredential.user!, usernameController.text);
+
         // pop loading circle
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.of(context, rootNavigator: true).pop();
         }
 
         // once created, send user to homepage
         if (mounted) {
-          Navigator.push(
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => const ExplorePage(),
@@ -65,13 +74,13 @@ class _RegisterPageState extends State<RegisterPage> {
       } on FirebaseAuthException catch (e) {
         if (mounted) {
           // pop loading circle
-          Navigator.pop(context);
+          Navigator.of(context, rootNavigator: true).pop();
 
           // show error message
           displayMessageToUser(e.code, context);
         }
       }
-    }   
+    }
   }
 
   @override
@@ -95,7 +104,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 const SizedBox(height: 50),
 
-                // welcome back, you've been missed!
+                // welcome message
                 Text(
                   'Vamos criar uma conta para você',
                   style: TextStyle(
@@ -105,6 +114,15 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
 
                 const SizedBox(height: 25),
+
+                // username textfield
+                MyTextField(
+                  controller: usernameController,
+                  hintText: 'Nome de usuário',
+                  obscureText: false,
+                ),
+
+                const SizedBox(height: 10),
 
                 // email textfield
                 MyTextField(
@@ -133,7 +151,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 const SizedBox(height: 25),
 
-                // sign in button
+                // register button
                 MyButton(
                   onTap: register,
                   text: "Cadastrar",
@@ -141,7 +159,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                 const SizedBox(height: 50),
 
-                // not a member? register now
+                // already a member? login now
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

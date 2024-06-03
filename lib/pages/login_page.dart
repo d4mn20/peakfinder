@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:peakfinder/auth/auth_service.dart';
-import 'package:peakfinder/helper/helper_function.dart';
+import 'package:peakfinder/helper/helper_function.dart'; // Import the helper functions
 import '../components/my_button.dart';
 import '../components/my_textfield.dart';
 import '../components/my_square_tile.dart';
 import 'explore_page.dart';
+import 'package:peakfinder/services/firestore_user_service.dart'; // Importa o FirestoreUserService
 
 class LoginPage extends StatefulWidget {
   final void Function()? onTap;
@@ -17,6 +18,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final FirestoreUserService _firestoreUserService = FirestoreUserService(); // Instancia o FirestoreUserService
+
   // text editing controllers
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -28,28 +31,39 @@ class _LoginPageState extends State<LoginPage> {
       context: context,
       builder: (context) => const Center(
         child: CircularProgressIndicator(),
-      )
+      ),
+      barrierDismissible: false, // Evita que o diálogo seja fechado ao clicar fora
     );
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(email: emailController.text, password: passwordController.text);
-    
-      if (context.mounted) Navigator.pop(context);
-    }
+      UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text,
+        password: passwordController.text,
+      );
 
-    // display on any errors
-    on FirebaseAuthException catch (e) {
-      // pop loading circle
-      Navigator.pop(context);
+      // Salva o usuário no Firestore (aqui não estamos pegando username, apenas garantindo que exista no Firestore)
+      await _firestoreUserService.saveUserToFirestore(userCredential.user!);
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      // once authenticated, send user to homepage
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ExplorePage(),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        // pop loading circle
+        Navigator.of(context, rootNavigator: true).pop();
+      }
       displayMessageToUser(e.code, context);
     }
-    // once authenticated, send user to homepage
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ExplorePage(),
-      ),
-    );
   }
 
   // forgot password
@@ -191,7 +205,7 @@ class _LoginPageState extends State<LoginPage> {
                         'lib/images/google.png',
                         height: 25,
                       ),
-                    ),                    
+                    ),
                   ],
                 ),
 

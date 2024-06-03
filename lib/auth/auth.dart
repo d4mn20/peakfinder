@@ -12,6 +12,10 @@ class AuthPage extends StatelessWidget {
       body: StreamBuilder(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
+          // AuthState logs
+          print("Auth state changed: ${snapshot.connectionState}");
+          print("Snapshot data: ${snapshot.data}");
+
           // user in logged in
           if (snapshot.hasData) {
             return const ExplorePage();

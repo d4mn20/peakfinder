@@ -136,17 +136,55 @@ class MyDrawer extends StatelessWidget {
   }
 
   void logout(BuildContext context) async {
-    // get auth service
-    final auth = AuthService();
-    auth.signOut();
-
-    // Navigate to LoginOrRegister page
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const LoginOrRegister(),
+    // Mostrar indicador de carregamento
+    showDialog(
+      context: context,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
       ),
-      (route) => false,
+    );
+
+    try {
+      await AuthService().signOut();
+      print("User signed out successfully");
+    } catch (e) {
+      // Exibir mensagem de erro se ocorrer
+      displayMessage(context, "Erro ao fazer logout: $e");
+    } finally {
+      // Fechar indicador de carregamento
+      Navigator.pop(context);
+      print("Loading dialog dismissed");
+
+      // Log adicional para depuração
+      print("Navigating to LoginOrRegister page");
+
+      // Navegar para a página LoginOrRegister
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const LoginOrRegister(),
+        ),
+        (route) => false,
+      );
+      
+      // Navigator.pushAndRemoveUntil(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (context) => Scaffold(body: Center(child: Text("Logged out"))),
+      //   ),
+      //   (route) => false,
+      // );
+
+      print("Navigation completed");
+    }
+  }
+  
+  void displayMessage(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(message),
+      ),
     );
   }
 }

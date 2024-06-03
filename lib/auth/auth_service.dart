@@ -1,9 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:peakfinder/services/firestore_user_service.dart'; // Importa o FirestoreUserService
 
 class AuthService {
   // instance of auth
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final FirestoreUserService _firestoreUserService = FirestoreUserService(); // Instancia o FirestoreUserService
 
   // Get current user
   User? getCurrentUser() {
@@ -44,16 +46,21 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
-    return await _firebaseAuth.signOut();
+      try {
+    await _firebaseAuth.signOut();
+    print("User signed out successfully");
+  } catch (e) {
+    print("Error signing out: $e");
+  }
   }
 
   // Google sign in
-  signInWithGoogle() async {
+  Future<UserCredential> signInWithGoogle() async {
     // begin interactive sign in process
     final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
 
     // users cancels google sign in pop up screen
-    if (googleUser == null) return;
+    if (googleUser == null) return Future.error('Google Sign In aborted');
 
     // obtain auth details from request
     final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -65,7 +72,11 @@ class AuthService {
     );
 
     // finally, sign in
-    return await _firebaseAuth.signInWithCredential(credential);
+    UserCredential userCredential = await _firebaseAuth.signInWithCredential(credential);
+
+    await _firestoreUserService.saveUserToFirestore(userCredential.user!, googleUser.displayName);
+    
+    return userCredential;
   }
 
   // possible error messages
