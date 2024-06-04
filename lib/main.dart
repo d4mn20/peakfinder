@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:peakfinder/auth/auth.dart';
 import 'package:provider/provider.dart';
+
+import 'package:peakfinder/auth/auth.dart';
 import 'package:peakfinder/firebase_options.dart';
 import 'package:peakfinder/services/storage.dart';
 import 'package:peakfinder/services/image_path_controller.dart';

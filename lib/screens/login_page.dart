@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:peakfinder/auth/auth_service.dart';
-import 'package:peakfinder/helper/helper_function.dart'; // Import the helper functions
-import '../components/my_button.dart';
-import '../components/my_textfield.dart';
-import '../components/my_square_tile.dart';
+import 'package:peakfinder/helper/helper_function.dart';
+import '../widgets/my_button.dart';
+import '../widgets/my_textfield.dart';
+import '../widgets/my_square_tile.dart';
 import 'explore_page.dart';
-import 'package:peakfinder/services/firestore_user_service.dart'; // Importa o FirestoreUserService
+import 'package:peakfinder/services/firestore_user_service.dart';
 
 class LoginPage extends StatefulWidget {
   final void Function()? onTap;
@@ -18,21 +18,18 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final FirestoreUserService _firestoreUserService = FirestoreUserService(); // Instancia o FirestoreUserService
+  final FirestoreUserService _firestoreUserService = FirestoreUserService();
 
-  // text editing controllers
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  // login method
   void login() async {
-    // authenticate user first
     showDialog(
       context: context,
       builder: (context) => const Center(
         child: CircularProgressIndicator(),
       ),
-      barrierDismissible: false, // Evita que o diálogo seja fechado ao clicar fora
+      barrierDismissible: false,
     );
 
     try {
@@ -41,14 +38,12 @@ class _LoginPageState extends State<LoginPage> {
         password: passwordController.text,
       );
 
-      // Salva o usuário no Firestore (aqui não estamos pegando username, apenas garantindo que exista no Firestore)
       await _firestoreUserService.saveUserToFirestore(userCredential.user!);
 
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pop();
       }
 
-      // once authenticated, send user to homepage
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -59,14 +54,12 @@ class _LoginPageState extends State<LoginPage> {
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
-        // pop loading circle
         Navigator.of(context, rootNavigator: true).pop();
       }
       displayMessageToUser(e.code, context);
     }
   }
 
-  // forgot password
   void forgotPw() {
     showDialog(
       context: context,
@@ -88,8 +81,6 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 50),
-
-                // logo
                 Image.asset(
                   'lib/images/logo.png',
                   height: 100,
@@ -103,8 +94,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 50),
-
-                // welcome back, you've been missed!
                 Text(
                   'Bem-vindo ao seu guia de escalada!',
                   style: TextStyle(
@@ -112,28 +101,19 @@ class _LoginPageState extends State<LoginPage> {
                     fontSize: 16,
                   ),
                 ),
-
                 const SizedBox(height: 25),
-
-                // email textfield
                 MyTextField(
                   controller: emailController,
                   hintText: 'Email',
                   obscureText: false,
                 ),
-
                 const SizedBox(height: 10),
-
-                // password textfield
                 MyTextField(
                   controller: passwordController,
                   hintText: 'Senha',
                   obscureText: true,
                 ),
-
                 const SizedBox(height: 10),
-
-                // forgot password?
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
@@ -152,18 +132,12 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 25),
-
-                // sign in button
                 MyButton(
                   onTap: login,
                   text: "Entrar",
                 ),
-
                 const SizedBox(height: 25),
-
-                // or continue with
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 25.0),
                   child: Row(
@@ -191,14 +165,10 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 25),
-
-                // google + apple sign in buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // google button
                     SquareTile(
                       onTap: () => AuthService().signInWithGoogle(),
                       child: Image.asset(
@@ -208,10 +178,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 25),
-
-                // not a member? register now
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

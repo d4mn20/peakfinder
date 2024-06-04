@@ -12,7 +12,8 @@ class FirestoreService {
   Future<void> addData(Map<String, dynamic> data, String userId) async {
     try {
       data['userId'] = userId;
-      data['likes'] = []; // Inicializa o campo likes como uma lista vazia
+      data['likes'] = [];
+      data['createdAt'] = Timestamp.now();
       await collection.add(data);
     } catch (e) {
       rethrow;

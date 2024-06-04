@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../components/my_app_bar.dart';
+import '../widgets/my_app_bar.dart';
 import '../theme/theme_provider.dart';
 
 class SettingsPage extends StatelessWidget {
