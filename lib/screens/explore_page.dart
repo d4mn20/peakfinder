@@ -8,6 +8,7 @@ import 'package:peakfinder/widgets/my_app_bar.dart';
 import 'package:peakfinder/widgets/my_drawer.dart';
 import 'package:peakfinder/widgets/add_peak_modal.dart';
 import 'package:peakfinder/widgets//marker_info_modal.dart';
+import 'package:peakfinder/widgets/search_and_filter_bar.dart';
 
 class ExplorePage extends StatefulWidget {
   final Map<String, dynamic>? initialData;
@@ -30,6 +31,9 @@ class _ExplorePageState extends State<ExplorePage> {
   Map<PolylineId, Polyline> polylines = {};
   Set<Marker> _markers = {};
   BitmapDescriptor? _flagIcon;
+
+  String? selectedDifficulty;
+  String? selectedPopularity;
 
   @override
   void initState() {
@@ -64,18 +68,26 @@ class _ExplorePageState extends State<ExplorePage> {
         ],
       ),
       drawer: const MyDrawer(),
-      body: _currentP == null
-          ? const Center(child: CircularProgressIndicator())
-          : GoogleMap(
-              onMapCreated: (GoogleMapController controller) => _mapController.complete(controller),
-              initialCameraPosition: CameraPosition(
-                target: widget.initialPosition ?? _currentP!,
-                zoom: 13,
-              ),
-              markers: _markers,
-              polylines: Set<Polyline>.of(polylines.values),
-              onTap: _onMapTapped,
-            ),
+      body: Stack(
+        children: [
+          _currentP == null
+              ? const Center(child: CircularProgressIndicator())
+              : GoogleMap(
+                  onMapCreated: (GoogleMapController controller) => _mapController.complete(controller),
+                  initialCameraPosition: CameraPosition(
+                    target: widget.initialPosition ?? _currentP!,
+                    zoom: 13,
+                  ),
+                  markers: _markers,
+                  polylines: Set<Polyline>.of(polylines.values),
+                  onTap: _onMapTapped,
+                ),
+          SearchAndFilterBar(
+            onApplyFilters: _applyFilters,
+            onSearch: _searchPeakByName,
+          ),
+        ],
+      ),
     );
   }
 
@@ -162,24 +174,25 @@ class _ExplorePageState extends State<ExplorePage> {
       List<QueryDocumentSnapshot> documents = await firestoreService.getAllData();
       Set<Marker> fetchedMarkers = documents.map((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        if (data['location'] != null && data['location'] is Map<String, dynamic>) {
-          Map<String, dynamic> locationData = data['location'] as Map<String, dynamic>;
-          LatLng position = LatLng(locationData['latitude'], locationData['longitude']);
-          return Marker(
-            markerId: MarkerId(doc.id),
-            position: position,
-            icon: _flagIcon ?? BitmapDescriptor.defaultMarker,
-            infoWindow: InfoWindow(
-              title: data['name'],
-              snippet: data['description'],
-            ),
-            onTap: () {
-              _showMarkerInfoModal(data, doc.id);
-            },
-          );
-        } else {
-          return null; // Return null if location data is invalid
+        if (_applyFiltersData(data)) {
+          if (data['location'] != null && data['location'] is Map<String, dynamic>) {
+            Map<String, dynamic> locationData = data['location'] as Map<String, dynamic>;
+            LatLng position = LatLng(locationData['latitude'], locationData['longitude']);
+            return Marker(
+              markerId: MarkerId(doc.id),
+              position: position,
+              icon: _flagIcon ?? BitmapDescriptor.defaultMarker,
+              infoWindow: InfoWindow(
+                title: data['name'],
+                snippet: data['description'],
+              ),
+              onTap: () {
+                _showMarkerInfoModal(data, doc.id);
+              },
+            );
+          }
         }
+        return null; // Return null if location data is invalid or filter does not match
       }).where((marker) => marker != null).cast<Marker>().toSet();
 
       setState(() {
@@ -190,6 +203,27 @@ class _ExplorePageState extends State<ExplorePage> {
         SnackBar(content: Text('Failed to load markers: $e')),
       );
     }
+  }
+
+  bool _applyFiltersData(Map<String, dynamic> data) {
+    bool matchesDifficulty = selectedDifficulty == null || data['difficulty'] == selectedDifficulty;
+    bool matchesPopularity = selectedPopularity == null || _getPopularity(data) == selectedPopularity;
+    return matchesDifficulty && matchesPopularity;
+  }
+
+  void _applyFilters(String? difficulty, String? popularity) {
+    setState(() {
+      selectedDifficulty = difficulty;
+      selectedPopularity = popularity;
+      fetchMarkersFromFirestore();
+    });
+  }
+
+  String _getPopularity(Map<String, dynamic> data) {
+    int likes = (data['likes'] ?? []).length;
+    if (likes > 50) return 'Muito Popular';
+    if (likes > 20) return 'Popular';
+    return 'Pouco Popular';
   }
 
   void _showMarkerInfoModal(Map<String, dynamic> data, String peakId) {
@@ -205,5 +239,36 @@ class _ExplorePageState extends State<ExplorePage> {
       },
     );
   }
-}
 
+  void _searchPeakByName(String name) async {
+    try {
+      List<QueryDocumentSnapshot> documents = await firestoreService.getAllData();
+      QueryDocumentSnapshot? result;
+
+      for (var doc in documents) {
+        var data = doc.data() as Map<String, dynamic>;
+        if (data['name'].toString().toLowerCase() == name.toLowerCase()) {
+          result = doc;
+          break;
+        }
+      }
+
+      if (result != null) {
+        Map<String, dynamic> data = result.data() as Map<String, dynamic>;
+        Map<String, dynamic> locationData = data['location'] as Map<String, dynamic>;
+        LatLng position = LatLng(locationData['latitude'], locationData['longitude']);
+        final GoogleMapController controller = await _mapController.future;
+        controller.animateCamera(CameraUpdate.newLatLng(position));
+        _showMarkerInfoModal(data, result.id);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nenhum Peak encontrado com esse nome')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro na busca: $e')),
+      );
+    }
+  }
+}
