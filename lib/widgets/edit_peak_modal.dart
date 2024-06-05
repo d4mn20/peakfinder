@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:peakfinder/widgets/my_button.dart';
 import 'package:peakfinder/widgets/my_textfield.dart';
+import 'package:peakfinder/widgets/my_multi_textfield.dart';
 import 'package:peakfinder/widgets/my_dropdown_button.dart';
 import 'package:peakfinder/services/firestore.dart';
 import 'package:peakfinder/services/image_path_controller.dart';
@@ -33,6 +33,7 @@ class EditPeakModalState extends State<EditPeakModal> {
   final TextEditingController protectionsController = TextEditingController();
   final TextEditingController conquerorController = TextEditingController();
   String? selectedDifficulty;
+  bool _isLoadingImage = false;
   String? imagePath;
   final List<String> difficultyOptions = [
     'I', 'Isup', 'II', 'IIsup', 'III', 'IIIsup', 'IV', 'IVsup', 'V', 'VI',
@@ -78,7 +79,7 @@ class EditPeakModalState extends State<EditPeakModal> {
                 obscureText: false,
               ),
               const SizedBox(height: 16),
-              MyTextField(
+              MyMultiTextField(
                 controller: descriptionController,
                 hintText: 'Descrição',
                 obscureText: false,
@@ -114,9 +115,11 @@ class EditPeakModalState extends State<EditPeakModal> {
                 builder: (context, imagePathController, child) {
                   return Column(
                     children: [
-                      imagePath == null
-                          ? const Text('Nenhuma imagem selecionada')
-                          : Image.network(imagePath!),
+                      _isLoadingImage
+                          ? const CircularProgressIndicator()
+                          : imagePath == null
+                            ? const Text('Nenhuma imagem selecionada')
+                            : Image.network(imagePath!),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () async {

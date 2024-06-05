@@ -23,7 +23,15 @@ class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
   void login() async {
+    // Mostrar indicador de carregamento
     showDialog(
       context: context,
       builder: (context) => const Center(
@@ -32,19 +40,25 @@ class _LoginPageState extends State<LoginPage> {
       barrierDismissible: false,
     );
 
+    bool userAuthenticated = false;
+
     try {
+      // Autenticar o usuário
       UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text,
         password: passwordController.text,
       );
 
+      // Salvar o usuário no Firestore
       await _firestoreUserService.saveUserToFirestore(userCredential.user!);
+      userAuthenticated = true;
+    } on FirebaseAuthException catch (e) {
+      displayMessageToUser(e.code, context);
+    }
 
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-
-      if (mounted) {
+    if (mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      if (userAuthenticated) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -52,13 +66,9 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
-      displayMessageToUser(e.code, context);
     }
   }
+
 
   void forgotPw() {
     showDialog(

@@ -1,10 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../widgets/my_app_bar.dart';
-import '../widgets/my_drawer.dart';
-import '../widgets/edit_peak_modal.dart';
-import '../services/firestore.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:peakfinder/services/firestore.dart';
+import 'package:peakfinder/screens/explore_page.dart';
+import 'package:peakfinder/widgets/my_app_bar.dart';
+import 'package:peakfinder/widgets/my_drawer.dart';
+import 'package:peakfinder/widgets/edit_peak_modal.dart';
+
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -36,7 +39,9 @@ class _ProfilePageState extends State<ProfilePage> {
               future: getUserDetails(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: CircularProgressIndicator()
+                  );
                 } else if (snapshot.hasError) {
                   return Text('Erro: ${snapshot.error}');
                 } else if (snapshot.hasData) {
@@ -94,7 +99,22 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ),
                                   child: ListTile(
                                     title: Text(peakData['name']),
-                                    subtitle: Text(peakData['description']),
+                                    onTap: () {
+                                      LatLng position = LatLng(
+                                        peakData['location']['latitude'],
+                                        peakData['location']['longitude'],
+                                      );
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => ExplorePage(
+                                            initialData: peakData,
+                                            initialPeakId: peak.id,
+                                            initialPosition: position,
+                                          ),
+                                        ),
+                                      );
+                                    },
                                     trailing: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [

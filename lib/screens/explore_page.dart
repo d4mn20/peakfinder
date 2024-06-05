@@ -31,6 +31,7 @@ class _ExplorePageState extends State<ExplorePage> {
   Map<PolylineId, Polyline> polylines = {};
   Set<Marker> _markers = {};
   BitmapDescriptor? _flagIcon;
+  bool _isLoading = false;
 
   String? selectedDifficulty;
   String? selectedPopularity;
@@ -82,9 +83,12 @@ class _ExplorePageState extends State<ExplorePage> {
                   polylines: Set<Polyline>.of(polylines.values),
                   onTap: _onMapTapped,
                 ),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator()),
           SearchAndFilterBar(
             onApplyFilters: _applyFilters,
             onSearch: _searchPeakByName,
+            onCurrentLocation: _goToCurrentLocation,
           ),
         ],
       ),
@@ -170,6 +174,10 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Future<void> fetchMarkersFromFirestore() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       List<QueryDocumentSnapshot> documents = await firestoreService.getAllData();
       Set<Marker> fetchedMarkers = documents.map((doc) {
@@ -185,10 +193,10 @@ class _ExplorePageState extends State<ExplorePage> {
               infoWindow: InfoWindow(
                 title: data['name'],
                 snippet: data['description'],
+                onTap: () {
+                  _showMarkerInfoModal(data, doc.id);
+                },
               ),
-              onTap: () {
-                _showMarkerInfoModal(data, doc.id);
-              },
             );
           }
         }
@@ -202,6 +210,10 @@ class _ExplorePageState extends State<ExplorePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load markers: $e')),
       );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -241,6 +253,10 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   void _searchPeakByName(String name) async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
       List<QueryDocumentSnapshot> documents = await firestoreService.getAllData();
       QueryDocumentSnapshot? result;
@@ -268,6 +284,21 @@ class _ExplorePageState extends State<ExplorePage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Erro na busca: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _goToCurrentLocation() async {
+    if (_currentP != null) {
+      final GoogleMapController controller = await _mapController.future;
+      controller.animateCamera(CameraUpdate.newLatLng(_currentP!));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Localização atual não disponível')),
       );
     }
   }

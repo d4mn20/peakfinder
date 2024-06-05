@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:peakfinder/auth/auth_service.dart';
 import 'package:peakfinder/screens/favorites_page.dart';
 import 'package:peakfinder/screens/explore_page.dart';
 import 'package:peakfinder/screens/profile_page.dart';
 import 'package:peakfinder/screens/settings_page.dart';
-import '../auth/login_or_register.dart';
+import 'package:peakfinder/auth/login_or_register.dart';
 
 class MyDrawer extends StatelessWidget {
   const MyDrawer({super.key});
@@ -18,6 +19,7 @@ class MyDrawer extends StatelessWidget {
         children: [
           Column(
             children: [
+              // app logo
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 50.0),
                 child: DrawerHeader(
@@ -33,38 +35,101 @@ class MyDrawer extends StatelessWidget {
                   ),
                 ),
               ),
-              _createDrawerItem(
-                context: context,
-                icon: Icons.map,
-                text: 'E X P L O R A R',
-                onTap: () => _navigateToPage(context, const ExplorePage()),
+
+              // home list tile
+              Padding(
+                padding: const EdgeInsets.only(left: 25.0, top: 10),
+                child: ListTile(
+                  title: const Text("E X P L O R A R"),
+                  leading: const Icon(Icons.map),
+                  onTap: () { 
+                    Navigator.pop(context);
+
+                    // go to home page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ExplorePage(),
+                      ),
+                    );
+                  },
+                ),
               ),
-              _createDrawerItem(
-                context: context,
-                icon: Icons.favorite,
-                text: 'F A V O R I T O S',
-                onTap: () => _navigateToPage(context, const FavoritesPage()),
+
+              // favorites list tile
+              Padding(
+                padding: const EdgeInsets.only(left: 25.0, top: 10),
+                child: ListTile(
+                  title: const Text("F A V O R I T O S"),
+                  leading: const Icon(Icons.favorite),
+                  onTap: () {
+                    // pop drawer
+                    Navigator.pop(context);
+
+                    // go to favorites page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FavoritesPage(),
+                      ),
+                    );
+                  },
+                ),
               ),
-              _createDrawerItem(
-                context: context,
-                icon: Icons.account_circle,
-                text: 'P E R F I L',
-                onTap: () => _navigateToPage(context, ProfilePage()),
+
+              // profile list tile
+              Padding(
+                padding: const EdgeInsets.only(left: 25.0, top: 10),
+                child: ListTile(
+                  title: const Text("P E R F I L"),
+                  leading: const Icon(Icons.account_circle),
+                  onTap: () {
+                    // pop drawer
+                    Navigator.pop(context);
+
+                    // go to profile page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ProfilePage(),
+                      ),
+                    );
+                  },
+                ),
               ),
-              _createDrawerItem(
-                context: context,
-                icon: Icons.settings,
-                text: 'C O N F I G U R A Ç Õ E S',
-                onTap: () => _navigateToPage(context, const SettingsPage()),
+
+              // settings list tile
+              Padding(
+                padding: const EdgeInsets.only(left: 25.0, top: 10),
+                child: ListTile(
+                  title: const Text("C O N F I G U R A Ç Õ E S"),
+                  leading: const Icon(Icons.settings),
+                  onTap: () {
+                    // pop drawer
+                    Navigator.pop(context);
+
+                    // go to settings page
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SettingsPage(),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
+
+          // logout list tile
           Padding(
             padding: const EdgeInsets.only(left: 25.0, bottom: 25),
             child: ListTile(
               title: const Text("L O G O U T"),
               leading: const Icon(Icons.logout),
-              onTap: () => _logout(context),
+              onTap: () async {
+                await _logout(context);
+              },
             ),
           ),
         ],
@@ -72,65 +137,54 @@ class MyDrawer extends StatelessWidget {
     );
   }
 
-  Widget _createDrawerItem({
-    required BuildContext context,
-    required IconData icon,
-    required String text,
-    required VoidCallback onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 25.0, top: 10),
-      child: ListTile(
-        title: Text(text),
-        leading: Icon(icon),
-        onTap: () {
-          Navigator.pop(context);
-          onTap();
-        },
-      ),
-    );
-  }
-
-  void _navigateToPage(BuildContext context, Widget page) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => page,
-      ),
-    );
-  }
-
-  void _logout(BuildContext context) async {
+  Future<void> _logout(BuildContext context) async {
+    final Logger logger = Logger('MyDrawer');
+    // Mostrar indicador de carregamento
     showDialog(
       context: context,
       builder: (context) => const Center(
         child: CircularProgressIndicator(),
       ),
+      barrierDismissible: false,
     );
 
     try {
       await AuthService().signOut();
+      logger.info("User signed out successfully");
+
+      if (context.mounted) {
+        // Fechar indicador de carregamento
+        Navigator.of(context, rootNavigator: true).pop();
+
+        // Navegar para a página LoginOrRegister e remover todas as páginas anteriores
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const LoginOrRegister(),
+          ),
+          (route) => false,
+        );
+      }
     } catch (e) {
-      _displayMessage(context, "Erro ao fazer logout: $e");
-    } finally {
-      Navigator.pop(context);
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const LoginOrRegister(),
-        ),
-        (route) => false,
-      );
+      if (context.mounted) {
+        // Fechar indicador de carregamento
+        Navigator.of(context, rootNavigator: true).pop();
+        
+        // Exibir mensagem de erro se ocorrer
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Erro ao fazer logout"),
+            content: Text(e.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      }
     }
-  }
-
-  void _displayMessage(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(message),
-      ),
-    );
   }
 }

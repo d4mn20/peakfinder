@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:peakfinder/widgets/my_button.dart';
 import 'package:peakfinder/widgets/my_textfield.dart';
+import 'package:peakfinder/widgets/my_multi_textfield.dart';
 import 'package:peakfinder/widgets/my_dropdown_button.dart';
 import 'package:peakfinder/services/firestore.dart';
 import 'package:peakfinder/services/image_path_controller.dart';
@@ -32,6 +33,7 @@ class AddPeakModalState extends State<AddPeakModal> {
   final TextEditingController protectionsController = TextEditingController();
   final TextEditingController conquerorController = TextEditingController();
   String? selectedDifficulty;
+  bool _isLoadingImage = false;
   final List<String> difficultyOptions = [
     'I', 'Isup', 'II', 'IIsup', 'III', 'IIIsup', 'IV', 'IVsup', 'V', 'VI',
     'VI/VI+', 'VIsup/VI+', 'VIsup', '7a', '7b', '7c', '8a', '8b', '8c', '9a',
@@ -65,7 +67,7 @@ class AddPeakModalState extends State<AddPeakModal> {
                 obscureText: false,
               ),
               const SizedBox(height: 16),
-              MyTextField(
+              MyMultiTextField(
                 controller: descriptionController,
                 hintText: 'Descrição',
                 obscureText: false,
@@ -101,21 +103,32 @@ class AddPeakModalState extends State<AddPeakModal> {
                 builder: (context, imagePathController, child) {
                   return Column(
                     children: [
-                      imagePathController.imagePath == null
-                          ? const Text('Nenhuma imagem selecionada')
-                          : Image.network(imagePathController.imagePath!),
+                      _isLoadingImage
+                          ? const CircularProgressIndicator()
+                          : imagePathController.imagePath == null
+                              ? const Text('Nenhuma imagem selecionada')
+                              : Image.network(imagePathController.imagePath!),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: () async {
+                        onPressed: _isLoadingImage ? null : () async {
                           final ImagePicker picker = ImagePicker();
                           final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
                           if (image != null) {
+                            setState(() {
+                              _isLoadingImage = true;
+                            });
+
                             String? imagePath = await Provider.of<StorageService>(context, listen: false)
                                 .uploadImage(File(image.path));
+
                             if (imagePath != null) {
                               imagePathController.setImagePath(imagePath);
                             }
+
+                            setState(() {
+                              _isLoadingImage = false;
+                            });
                           }
                         },
                         child: const Text('Selecionar Imagem'),
